@@ -47,20 +47,32 @@ fileInput.addEventListener('change', async (event) => {
   alert('Thank you! Your photos have been uploaded.');
 });
 
-// Load existing photos on page load
+// Load existing photos on page load (only latest 50)
 async function loadGallery() {
   const listRef = storage.ref('wedding-photos/');
   try {
     const result = await listRef.listAll();
-    result.items.forEach(async (itemRef) => {
+
+    // Sort files by name (we used Date.now() in the filename, so newer = larger number)
+    const sortedItems = result.items.sort((a, b) => {
+      const aName = a.name.split('_')[0];
+      const bName = b.name.split('_')[0];
+      return bName.localeCompare(aName); // newest first
+    });
+
+    // Take only the first 50
+    const latest50 = sortedItems.slice(0, 50);
+
+    for (const itemRef of latest50) {
       const url = await itemRef.getDownloadURL();
       const img = document.createElement('img');
       img.src = url;
       gallery.appendChild(img);
-    });
+    }
   } catch (error) {
     console.error("Failed to load gallery:", error);
   }
 }
+
 
 loadGallery();
