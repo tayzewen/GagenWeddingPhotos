@@ -1,0 +1,33 @@
+body { 
+  font-family: Arial, sans-serif; 
+  text-align: center; 
+  padding: 2rem; 
+  background: #fefefe; 
+}
+
+h1 { 
+  font-size: 2rem; 
+  margin-bottom: 1rem; 
+}
+
+button { 
+  font-size: 1.2rem; 
+  padding: 1rem 2rem; 
+  cursor: pointer; 
+  margin-bottom: 1rem; 
+}
+
+#gallery { 
+  display: flex; 
+  flex-wrap: wrap; 
+  justify-content: center; 
+  margin-top: 1rem; 
+}
+
+#gallery img { 
+  max-width: 120px; 
+  max-height: 120px; 
+  margin: 0.5rem; 
+  border-radius: 8px; 
+  object-fit: cover; 
+}
