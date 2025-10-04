@@ -1,33 +1,65 @@
-body { 
-  font-family: Arial, sans-serif; 
-  text-align: center; 
-  padding: 2rem; 
-  background: #fefefe; 
+body {
+    font-family: Arial, sans-serif;
+    text-align: center;
+    margin: 0;
+    padding: 0;
+    background: #fefefe;
 }
 
-h1 { 
-  font-size: 2rem; 
-  margin-bottom: 1rem; 
+#banner {
+    width: 100%;
+    justify-content: center;
+    border-bottom: 1px solid #333;
 }
 
-button { 
-  font-size: 1.2rem; 
-  padding: 1rem 2rem; 
-  cursor: pointer; 
-  margin-bottom: 1rem; 
+#banner h1 {
+    color: #333;
+    font-family: 'Playfair Display SC', serif;
+    font-size: 2rem;
+    font-weight: bold;
 }
 
-#gallery { 
-  display: flex; 
-  flex-wrap: wrap; 
-  justify-content: center; 
-  margin-top: 1rem; 
+h1 {
+    font-size: 1.5rem;
+    margin: 1rem 0 0.5rem 0;
+    padding: 0 1rem;
 }
 
-#gallery img { 
-  max-width: 120px; 
-  max-height: 120px; 
-  margin: 0.5rem; 
-  border-radius: 8px; 
-  object-fit: cover; 
+p {
+    font-size: 1rem;
+    margin: 0 0 1rem 0;
+    padding: 0 1rem;
+}
+
+button {
+    font-size: 1.2rem;
+    padding: 0.8rem 1.5rem;
+    cursor: pointer;
+    margin-bottom: 1rem;
+    width: 80%;
+    max-width: 300px;
+    box-sizing: border-box;
+}
+
+#gallery {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin-top: 1rem;
+    padding: 0 0.5rem;
+}
+
+#gallery img {
+    width: 100%;
+    max-width: 350px;
+    margin: 0.5rem 0;
+    border-radius: 8px;
+    object-fit: cover;
+}
+
+@media (max-width: 360px) {
+    h1 { font-size: 1.3rem; }
+    #banner { font-size: 1.1rem; }
+    button { font-size: 1rem; width: 90%; }
+    #gallery img { max-width: 100%; }
 }
