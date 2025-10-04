@@ -24,8 +24,9 @@ body {
     height: 65vh;
     display: flex;
     flex-direction: column;
-    justify-content: space-between;
+    /* justify-content: space-between; */
     align-items: center;
+    gap: 2rem;
 }
 
 #head-img {
@@ -50,6 +51,7 @@ body {
     justify-content: center;
     align-items: center;
     padding: 0 1rem;
+
 }
 
 
@@ -77,13 +79,16 @@ p {
 
 #add-photos {
     width: 100%;
+
 }
 
 button {
     font-family: 'Alegreya Sans SC', sans-serif;
     background-color: #333;
     color: #fefefe;
-    font-size: 1.2rem;
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: 1px;
     padding: 0.8rem 1.5rem;
     cursor: pointer;
     width: 80%;
