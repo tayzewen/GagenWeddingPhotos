@@ -26,7 +26,7 @@ body {
     flex-direction: column;
     /* justify-content: space-between; */
     align-items: center;
-    gap: 2rem;
+    gap: 1.5rem;
 }
 
 #head-img {
@@ -66,15 +66,20 @@ h1 {
 
 h2 {
     font-family: 'Alegreya SC', serif;
-    font-size: 2.3rem;
-    font-weight: 100;
-    margin: .5rem 0 .5rem;
+    font-size: 2.2rem;
+    font-weight:lighter;
+    margin: 0 0 .5rem;
+    line-height: 100%;
 }
 
 p {
     font-family: 'Alegreya Sans SC', sans-serif;
     font-size: 1.4rem;
     margin: .5rem 0;
+}
+
+#first-p {
+    margin-top: 0;
 }
 
 #add-photos {
