@@ -9,11 +9,20 @@ body {
     width: 100%;
     justify-content: center;
     border-bottom: 1px solid #333;
-    padding: .5rem 0;
+    padding: 1rem 0 .5rem;
+    height: 10vh;
+}
+
+#content {
+    height: 65vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6rem;
 }
 
 #welcome-text {
-    height: 30vh;
+    /* height: 30vh; */
     display: flex;
     flex-direction: column;
     justify-content: center;
@@ -34,15 +43,16 @@ h1 {
 
 p {
     font-family: 'Alegreya Sans SC', sans-serif;
-    font-size: 1.3rem;
+    font-size: 1.4rem;
     margin: .5rem 0;
 }
 
-#add-photos {
+/* #add-photos {
     margin-bottom: 1rem;
-}
+} */
 
 button {
+    font-family: 'Alegreya Sans SC', sans-serif;
     background-color: #333;
     color: #fefefe;
     font-size: 1.2rem;
