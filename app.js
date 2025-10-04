@@ -26,8 +26,8 @@ fileInput.addEventListener('change', async (event) => {
   const files = event.target.files;
   if (!files.length) return;
 
-  for (let i = 0; i < files.length; i++) {
-    const file = files[i];
+  for (const file of files) {
+    console.log("Uploading:", file.name, file.type, file.size);
 
     if (file.size > MAX_FILE_SIZE) {
       alert(`${file.name} is too large (max 50MB).`);
@@ -40,10 +40,20 @@ fileInput.addEventListener('change', async (event) => {
     try {
       await storageRef.put(file);
       const url = await storageRef.getDownloadURL();
-      displayMedia(url, file.type);
+
+      // Determine type (fallback if file.type is empty)
+      let type = file.type;
+      if (!type) {
+        const ext = file.name.split('.').pop().toLowerCase();
+        if (['mp4', 'mov', 'webm'].includes(ext)) type = 'video/mp4';
+        else type = 'image/jpeg';
+      }
+
+      displayMedia(url, type);
+
     } catch (error) {
-      console.error("Upload failed:", error);
-      alert("Error uploading " + file.name);
+      console.error("Upload failed for", file.name, error);
+      alert(`Error uploading ${file.name}: ${error.message}`);
     }
   }
 
@@ -74,12 +84,13 @@ function displayMedia(url, type) {
     element.preload = 'metadata';
     element.style.width = '100%';
     element.style.height = 'auto';
+  } else {
+    console.warn("Unsupported file type:", type);
+    return;
   }
 
-  if (element) {
-    container.appendChild(element);
-    gallery.prepend(container);
-  }
+  container.appendChild(element);
+  gallery.prepend(container);
 }
 
 // Load latest 50 media files
@@ -88,6 +99,7 @@ async function loadGallery() {
   try {
     const result = await listRef.listAll();
 
+    // Sort files by timestamp in filename (newest first)
     const sortedItems = result.items.sort((a, b) => {
       const aName = a.name.split('_')[0];
       const bName = b.name.split('_')[0];
@@ -97,10 +109,16 @@ async function loadGallery() {
     const latest50 = sortedItems.slice(0, 50);
 
     for (const itemRef of latest50) {
-      const url = await itemRef.getDownloadURL();
-      const meta = await itemRef.getMetadata();
-      displayMedia(url, meta.contentType || 'image/jpeg');
+      try {
+        const url = await itemRef.getDownloadURL();
+        const meta = await itemRef.getMetadata();
+        const type = meta.contentType || (itemRef.name.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+        displayMedia(url, type);
+      } catch (err) {
+        console.error("Failed to load item:", itemRef.name, err);
+      }
     }
+
   } catch (error) {
     console.error("Failed to load gallery:", error);
   }
