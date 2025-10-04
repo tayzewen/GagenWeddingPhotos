@@ -1,41 +1,50 @@
 body {
-    font-family: Arial, sans-serif;
-    text-align: center;
     margin: 0;
     padding: 0;
     background: #fefefe;
+    text-align: center;
 }
 
 #banner {
     width: 100%;
     justify-content: center;
     border-bottom: 1px solid #333;
+    padding: .5rem 0;
 }
 
-#banner h1 {
-    color: #333;
-    font-family: 'Playfair Display SC', serif;
-    font-size: 2rem;
-    font-weight: bold;
+#welcome-text {
+    height: 30vh;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    padding: 0 1rem;
 }
+
 
 h1 {
-    font-size: 1.5rem;
     margin: 1rem 0 0.5rem 0;
     padding: 0 1rem;
+    color: #333;
+    font-family: 'Alegreya SC', serif;
+    font-size: 2.5rem;
+    font-weight: 300;
+    letter-spacing: 1px;
 }
 
 p {
-    font-size: 1rem;
-    margin: 0 0 1rem 0;
-    padding: 0 1rem;
+    font-family: 'Alegreya Sans SC', sans-serif;
+    font-size: 1.2rem;
+}
+
+#add-photos {
+    margin-bottom: 1rem;
 }
 
 button {
     font-size: 1.2rem;
     padding: 0.8rem 1.5rem;
     cursor: pointer;
-    margin-bottom: 1rem;
     width: 80%;
     max-width: 300px;
     box-sizing: border-box;
