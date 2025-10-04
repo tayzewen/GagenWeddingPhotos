@@ -23,8 +23,8 @@ body {
 
 
 h1 {
-    margin: 1rem 0 0.5rem 0;
-    padding: 0 1rem;
+    margin: .5rem 0;
+    /* padding: 0 1rem; */
     color: #333;
     font-family: 'Alegreya SC', serif;
     font-size: 2.5rem;
@@ -34,7 +34,8 @@ h1 {
 
 p {
     font-family: 'Alegreya Sans SC', sans-serif;
-    font-size: 1.2rem;
+    font-size: 1.3rem;
+    margin: .5rem 0;
 }
 
 #add-photos {
