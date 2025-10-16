@@ -16,52 +16,82 @@ const storage = firebase.storage();
 const uploadBtn = document.getElementById('uploadBtn');
 const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
-const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
 
-// Trigger file picker
+// Create and style progress bar
+const progressContainer = document.createElement('div');
+progressContainer.style.width = '80%';
+progressContainer.style.maxWidth = '300px';
+progressContainer.style.height = '10px';
+progressContainer.style.borderRadius = '5px';
+progressContainer.style.overflow = 'hidden';
+progressContainer.style.background = '#ddd';
+progressContainer.style.margin = '1rem auto';
+progressContainer.style.display = 'none';
+
+const progressBar = document.createElement('div');
+progressBar.style.height = '100%';
+progressBar.style.width = '0%';
+progressBar.style.background = '#333';
+progressBar.style.transition = 'width 0.3s ease';
+
+progressContainer.appendChild(progressBar);
+document.getElementById('add-photos').appendChild(progressContainer);
+
+// --- Upload Handling ---
 uploadBtn.addEventListener('click', () => fileInput.click());
 
-// Handle file uploads
 fileInput.addEventListener('change', async (event) => {
   const files = event.target.files;
   if (!files.length) return;
 
   for (const file of files) {
-    console.log("Uploading:", file.name, file.type, file.size);
-
     if (file.size > MAX_FILE_SIZE) {
-      alert(`${file.name} is too large (max 50MB).`);
+      alert(`${file.name} is too large (max 200MB).`);
       continue;
     }
 
     const timestamp = Date.now();
-    const storageRef = storage.ref('wedding-photos/' + timestamp + '_' + file.name);
+    const storageRef = storage.ref(`wedding-photos/${timestamp}_${file.name}`);
 
-    try {
-      await storageRef.put(file);
-      const url = await storageRef.getDownloadURL();
+    const uploadTask = storageRef.put(file);
+    progressContainer.style.display = 'block';
 
-      // Determine type (fallback if file.type is empty)
-      let type = file.type;
-      if (!type) {
-        const ext = file.name.split('.').pop().toLowerCase();
-        if (['mp4', 'mov', 'webm'].includes(ext)) type = 'video/mp4';
-        else type = 'image/jpeg';
+    uploadTask.on(
+      'state_changed',
+      (snapshot) => {
+        const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 100;
+        progressBar.style.width = `${progress}%`;
+      },
+      (error) => {
+        console.error("Upload failed for", file.name, error);
+        alert(`Error uploading ${file.name}: ${error.message}`);
+        progressContainer.style.display = 'none';
+      },
+      async () => {
+        progressBar.style.width = '100%';
+        setTimeout(() => {
+          progressContainer.style.display = 'none';
+          progressBar.style.width = '0%';
+        }, 1000);
+
+        const url = await uploadTask.snapshot.ref.getDownloadURL();
+        displayMedia(url, file.type || getTypeFromName(file.name));
       }
-
-      displayMedia(url, type);
-
-    } catch (error) {
-      console.error("Upload failed for", file.name, error);
-      alert(`Error uploading ${file.name}: ${error.message}`);
-    }
+    );
   }
 
   fileInput.value = '';
-  alert('Thank you! Your photos/videos have been uploaded.');
 });
 
-// Display media (photo or video)
+// --- Helpers ---
+function getTypeFromName(name) {
+  const ext = name.split('.').pop().toLowerCase();
+  if (['mp4', 'mov', 'webm'].includes(ext)) return 'video/mp4';
+  return 'image/jpeg';
+}
+
+// --- Display Media (with Lazy Loading) ---
 function displayMedia(url, type) {
   const container = document.createElement('div');
   container.style.marginBottom = '1rem';
@@ -74,6 +104,7 @@ function displayMedia(url, type) {
   if (type.startsWith('image/')) {
     element = document.createElement('img');
     element.src = url;
+    element.loading = 'lazy';
     element.style.width = '100%';
     element.style.height = 'auto';
     element.style.display = 'block';
@@ -82,6 +113,7 @@ function displayMedia(url, type) {
     element.src = url;
     element.controls = true;
     element.preload = 'metadata';
+    element.loading = 'lazy';
     element.style.width = '100%';
     element.style.height = 'auto';
   } else {
@@ -93,30 +125,53 @@ function displayMedia(url, type) {
   gallery.prepend(container);
 }
 
-// Load latest 50 media files
-async function loadGallery() {
+// --- Lazy Load Latest 50 Media ---
+async function loadGallery(limit = 10) {
   const listRef = storage.ref('wedding-photos/');
   try {
     const result = await listRef.listAll();
 
-    // Sort files by timestamp in filename (newest first)
     const sortedItems = result.items.sort((a, b) => {
       const aName = a.name.split('_')[0];
       const bName = b.name.split('_')[0];
       return bName.localeCompare(aName);
     });
 
-    const latest50 = sortedItems.slice(0, 50);
+    const latest = sortedItems.slice(0, limit);
 
-    for (const itemRef of latest50) {
+    for (const itemRef of latest) {
       try {
-        const url = await itemRef.getDownloadURL();
-        const meta = await itemRef.getMetadata();
-        const type = meta.contentType || (itemRef.name.endsWith('.mp4') ? 'video/mp4' : 'image/jpeg');
+        const [url, meta] = await Promise.all([
+          itemRef.getDownloadURL(),
+          itemRef.getMetadata()
+        ]);
+        const type = meta.contentType || getTypeFromName(itemRef.name);
         displayMedia(url, type);
       } catch (err) {
         console.error("Failed to load item:", itemRef.name, err);
       }
+    }
+
+    // Add "Load More" button if there are more items
+    if (sortedItems.length > limit && !document.getElementById('loadMoreBtn')) {
+      const loadMoreBtn = document.createElement('button');
+      loadMoreBtn.id = 'loadMoreBtn';
+      loadMoreBtn.textContent = 'Load More';
+      loadMoreBtn.style.margin = '1rem auto';
+      loadMoreBtn.style.display = 'block';
+      loadMoreBtn.style.fontFamily = 'Alegreya Sans SC, sans-serif';
+      loadMoreBtn.style.backgroundColor = '#333';
+      loadMoreBtn.style.color = '#fff';
+      loadMoreBtn.style.borderRadius = '70px';
+      loadMoreBtn.style.padding = '0.6rem 1.5rem';
+      loadMoreBtn.style.cursor = 'pointer';
+
+      loadMoreBtn.addEventListener('click', () => {
+        gallery.innerHTML = '';
+        loadGallery(limit + 10);
+      });
+
+      gallery.appendChild(loadMoreBtn);
     }
 
   } catch (error) {
