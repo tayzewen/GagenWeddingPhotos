@@ -9,16 +9,15 @@ const firebaseConfig = {
   measurementId: "G-31RV2D8G34"
 };
 
-// Initialize Firebase
 firebase.initializeApp(firebaseConfig);
 const storage = firebase.storage();
 
 const uploadBtn = document.getElementById('uploadBtn');
 const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
-const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB
+const MAX_FILE_SIZE = 200 * 1024 * 1024; // 200MB limit
 
-// Create and style progress bar
+// --- Progress Bar ---
 const progressContainer = document.createElement('div');
 progressContainer.style.width = '80%';
 progressContainer.style.maxWidth = '300px';
@@ -38,6 +37,42 @@ progressBar.style.transition = 'width 0.3s ease';
 progressContainer.appendChild(progressBar);
 document.getElementById('add-photos').appendChild(progressContainer);
 
+// --- Compression ---
+async function compressImage(file) {
+  if (file.type.startsWith('image/')) {
+    const options = {
+      maxSizeMB: 1.2,
+      maxWidthOrHeight: 1920,
+      useWebWorker: true,
+      initialQuality: 0.8
+    };
+    return await imageCompression(file, options);
+  }
+  return file; // videos handled separately
+}
+
+// --- Generate Video Thumbnail ---
+async function generateVideoThumbnail(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement('video');
+    video.src = URL.createObjectURL(file);
+    video.crossOrigin = "anonymous";
+
+    video.onloadeddata = () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => {
+        resolve(blob);
+      }, 'image/png', 1);
+    };
+
+    video.onerror = (err) => reject(err);
+  });
+}
+
 // --- Upload Handling ---
 uploadBtn.addEventListener('click', () => fileInput.click());
 
@@ -51,11 +86,25 @@ fileInput.addEventListener('change', async (event) => {
       continue;
     }
 
-    const timestamp = Date.now();
-    const storageRef = storage.ref(`wedding-photos/${timestamp}_${file.name}`);
-
-    const uploadTask = storageRef.put(file);
     progressContainer.style.display = 'block';
+    const timestamp = Date.now();
+
+    let uploadFile = file;
+    let thumbnailBlob = null;
+
+    if (file.type.startsWith('image/')) {
+      uploadFile = await compressImage(file);
+    } else if (file.type.startsWith('video/')) {
+      try {
+        thumbnailBlob = await generateVideoThumbnail(file);
+      } catch (err) {
+        console.warn("Thumbnail generation failed, using placeholder.", err);
+      }
+    }
+
+    // Upload main file
+    const storageRef = storage.ref(`wedding-photos/${timestamp}_${file.name}`);
+    const uploadTask = storageRef.put(uploadFile);
 
     uploadTask.on(
       'state_changed',
@@ -76,7 +125,16 @@ fileInput.addEventListener('change', async (event) => {
         }, 1000);
 
         const url = await uploadTask.snapshot.ref.getDownloadURL();
-        displayMedia(url, file.type || getTypeFromName(file.name));
+
+        let thumbnailURL = null;
+        if (thumbnailBlob) {
+          // Upload thumbnail to Firebase
+          const thumbRef = storage.ref(`wedding-photos-thumbnails/${timestamp}_${file.name}.png`);
+          await thumbRef.put(thumbnailBlob);
+          thumbnailURL = await thumbRef.getDownloadURL();
+        }
+
+        displayMedia(url, file.type || getTypeFromName(file.name), thumbnailURL);
       }
     );
   }
@@ -91,8 +149,8 @@ function getTypeFromName(name) {
   return 'image/jpeg';
 }
 
-// --- Display Media (with Lazy Loading) ---
-function displayMedia(url, type) {
+// --- Display Media ---
+async function displayMedia(url, type) {
   const container = document.createElement('div');
   container.style.marginBottom = '1rem';
   container.style.width = '100%';
@@ -101,6 +159,7 @@ function displayMedia(url, type) {
   container.style.overflow = 'hidden';
 
   let element;
+
   if (type.startsWith('image/')) {
     element = document.createElement('img');
     element.src = url;
@@ -108,25 +167,48 @@ function displayMedia(url, type) {
     element.style.width = '100%';
     element.style.height = 'auto';
     element.style.display = 'block';
-  } else if (type.startsWith('video/')) {
+    container.appendChild(element);
+    gallery.appendChild(container);
+  } 
+  else if (type.startsWith('video/')) {
+    // Create video element
     element = document.createElement('video');
     element.src = url;
     element.controls = true;
     element.preload = 'metadata';
-    element.loading = 'lazy';
     element.style.width = '100%';
     element.style.height = 'auto';
-  } else {
-    console.warn("Unsupported file type:", type);
-    return;
-  }
 
-  container.appendChild(element);
-  gallery.prepend(container);
+    container.appendChild(element);
+    gallery.appendChild(container);
+
+    // Generate thumbnail dynamically
+    const thumbCanvas = document.createElement('canvas');
+    const thumbVideo = document.createElement('video');
+    thumbVideo.src = url;
+    thumbVideo.crossOrigin = "anonymous"; // may be needed if videos are CORS-protected
+    thumbVideo.muted = true;
+
+    thumbVideo.addEventListener('loadeddata', () => {
+      thumbCanvas.width = thumbVideo.videoWidth;
+      thumbCanvas.height = thumbVideo.videoHeight;
+      const ctx = thumbCanvas.getContext('2d');
+      ctx.drawImage(thumbVideo, 0, 0, thumbCanvas.width, thumbCanvas.height);
+      const dataURL = thumbCanvas.toDataURL('image/jpeg');
+      element.poster = dataURL; // set thumbnail
+      thumbVideo.remove(); // cleanup
+    });
+  } 
+  else {
+    console.warn("Unsupported file type:", type);
+  }
 }
 
-// --- Lazy Load Latest 50 Media ---
-async function loadGallery(limit = 10) {
+
+// --- Gallery Loader ---
+let currentLimit = 10;
+
+async function loadGallery(limit = currentLimit) {
   const listRef = storage.ref('wedding-photos/');
   try {
     const result = await listRef.listAll();
@@ -137,41 +219,59 @@ async function loadGallery(limit = 10) {
       return bName.localeCompare(aName);
     });
 
-    const latest = sortedItems.slice(0, limit);
+    const currentCount = gallery.querySelectorAll('div').length;
+    const nextItems = sortedItems.slice(currentCount, limit);
 
-    for (const itemRef of latest) {
+    for (const itemRef of nextItems) {
       try {
         const [url, meta] = await Promise.all([
           itemRef.getDownloadURL(),
           itemRef.getMetadata()
         ]);
-        const type = meta.contentType || getTypeFromName(itemRef.name);
-        displayMedia(url, type);
+
+        let thumbnailURL = null;
+        if (meta.contentType.startsWith('video/')) {
+          const thumbRef = storage.ref(`wedding-photos-thumbnails/${itemRef.name}.png`);
+          try {
+            thumbnailURL = await thumbRef.getDownloadURL();
+          } catch {
+            thumbnailURL = '/img/video-placeholder.png';
+          }
+        }
+
+        displayMedia(url, meta.contentType || getTypeFromName(itemRef.name), thumbnailURL);
       } catch (err) {
         console.error("Failed to load item:", itemRef.name, err);
       }
     }
 
-    // Add "Load More" button if there are more items
-    if (sortedItems.length > limit && !document.getElementById('loadMoreBtn')) {
-      const loadMoreBtn = document.createElement('button');
-      loadMoreBtn.id = 'loadMoreBtn';
-      loadMoreBtn.textContent = 'Load More';
-      loadMoreBtn.style.margin = '1rem auto';
-      loadMoreBtn.style.display = 'block';
-      loadMoreBtn.style.fontFamily = 'Alegreya Sans SC, sans-serif';
-      loadMoreBtn.style.backgroundColor = '#333';
-      loadMoreBtn.style.color = '#fff';
-      loadMoreBtn.style.borderRadius = '70px';
-      loadMoreBtn.style.padding = '0.6rem 1.5rem';
-      loadMoreBtn.style.cursor = 'pointer';
+    // Load More button
+    let loadMoreBtn = document.getElementById('loadMoreBtn');
+    if (sortedItems.length > limit) {
+      if (!loadMoreBtn) {
+        loadMoreBtn = document.createElement('button');
+        loadMoreBtn.id = 'loadMoreBtn';
+        loadMoreBtn.textContent = 'Load More';
+        loadMoreBtn.style.margin = '1rem auto';
+        loadMoreBtn.style.display = 'block';
+        loadMoreBtn.style.fontFamily = 'Alegreya Sans SC, sans-serif';
+        loadMoreBtn.style.backgroundColor = '#333';
+        loadMoreBtn.style.color = '#fff';
+        loadMoreBtn.style.borderRadius = '70px';
+        loadMoreBtn.style.padding = '0.6rem 1.5rem';
+        loadMoreBtn.style.cursor = 'pointer';
 
-      loadMoreBtn.addEventListener('click', () => {
-        gallery.innerHTML = '';
-        loadGallery(limit + 10);
-      });
+        loadMoreBtn.addEventListener('click', async () => {
+          const previousScroll = window.scrollY;
+          currentLimit += 10;
+          await loadGallery(currentLimit);
+          window.scrollTo({ top: previousScroll, behavior: 'smooth' });
+        });
 
-      gallery.appendChild(loadMoreBtn);
+        gallery.appendChild(loadMoreBtn);
+      }
+    } else if (loadMoreBtn) {
+      loadMoreBtn.remove();
     }
 
   } catch (error) {
