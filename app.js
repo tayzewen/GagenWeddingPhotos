@@ -105,7 +105,7 @@ function getTypeFromName(name) {
 }
 
 // --- Display Media (with Lazy Loading) ---
-function displayMedia(url, type) {
+async function displayMedia(url, type) {
   const container = document.createElement('div');
   container.style.marginBottom = '1rem';
   container.style.width = '100%';
@@ -121,22 +121,39 @@ function displayMedia(url, type) {
     element.style.width = '100%';
     element.style.height = 'auto';
     element.style.display = 'block';
+    container.appendChild(element);
   } else if (type.startsWith('video/')) {
     element = document.createElement('video');
     element.src = url;
     element.controls = true;
     element.preload = 'metadata';
-    element.poster = '/img/video-placeholder.png'; // default placeholder
     element.style.width = '100%';
     element.style.height = 'auto';
+
+    // Generate thumbnail from first frame
+    const videoForThumb = document.createElement('video');
+    videoForThumb.src = url;
+    videoForThumb.preload = 'metadata';
+    videoForThumb.muted = true;
+    videoForThumb.currentTime = 0.1; // small offset to ensure metadata is loaded
+    videoForThumb.addEventListener('loadeddata', () => {
+      const canvas = document.createElement('canvas');
+      canvas.width = videoForThumb.videoWidth;
+      canvas.height = videoForThumb.videoHeight;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(videoForThumb, 0, 0, canvas.width, canvas.height);
+      element.poster = canvas.toDataURL('image/jpeg');
+    });
+
+    container.appendChild(element);
   } else {
     console.warn("Unsupported file type:", type);
     return;
   }
 
-  container.appendChild(element);
   gallery.appendChild(container);
 }
+
 
 // --- Gallery Loader with "Load More" ---
 let currentLimit = 10;
