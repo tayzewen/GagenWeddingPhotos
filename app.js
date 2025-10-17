@@ -12,6 +12,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const storage = firebase.storage();
 
+// --- DOM Elements ---
 const uploadBtn = document.getElementById('uploadBtn');
 const fileInput = document.getElementById('fileInput');
 const gallery = document.getElementById('gallery');
@@ -39,7 +40,7 @@ document.getElementById('add-photos').appendChild(progressContainer);
 
 // --- Compress Images Only ---
 async function compressImage(file) {
-  if (!file.type.startsWith('image/')) return file; // videos are untouched
+  if (!file.type.startsWith('image/')) return file; // skip videos
   const options = {
     maxSizeMB: 1.2,
     maxWidthOrHeight: 1920,
@@ -104,7 +105,7 @@ function getTypeFromName(name) {
   return 'image/jpeg';
 }
 
-// --- Display Media (with Lazy Loading) ---
+// --- Display Media (with Lazy Loading & Thumbnails) ---
 async function displayMedia(url, type) {
   const container = document.createElement('div');
   container.style.marginBottom = '1rem';
@@ -113,39 +114,51 @@ async function displayMedia(url, type) {
   container.style.borderRadius = '8px';
   container.style.overflow = 'hidden';
 
-  let element;
   if (type.startsWith('image/')) {
-    element = document.createElement('img');
-    element.src = url;
-    element.loading = 'lazy';
-    element.style.width = '100%';
-    element.style.height = 'auto';
-    element.style.display = 'block';
-    container.appendChild(element);
-  } else if (type.startsWith('video/')) {
-    element = document.createElement('video');
-    element.src = url;
-    element.controls = true;
-    element.preload = 'metadata';
-    element.style.width = '100%';
-    element.style.height = 'auto';
+    const img = document.createElement('img');
+    img.src = url;
+    img.loading = 'lazy';
+    img.style.width = '100%';
+    img.style.height = 'auto';
+    img.style.display = 'block';
+    container.appendChild(img);
 
-    // Generate thumbnail from first frame
-    const videoForThumb = document.createElement('video');
-    videoForThumb.src = url;
-    videoForThumb.preload = 'metadata';
-    videoForThumb.muted = true;
-    videoForThumb.currentTime = 0.1; // small offset to ensure metadata is loaded
-    videoForThumb.addEventListener('loadeddata', () => {
-      const canvas = document.createElement('canvas');
-      canvas.width = videoForThumb.videoWidth;
-      canvas.height = videoForThumb.videoHeight;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(videoForThumb, 0, 0, canvas.width, canvas.height);
-      element.poster = canvas.toDataURL('image/jpeg');
+  } else if (type.startsWith('video/')) {
+    const video = document.createElement('video');
+    video.src = url;
+    video.controls = true;
+    video.preload = 'metadata';
+    video.style.width = '100%';
+    video.style.height = 'auto';
+
+    // Generate thumbnail dynamically where supported
+    const videoThumb = document.createElement('video');
+    videoThumb.src = url;
+    videoThumb.crossOrigin = "anonymous";
+    videoThumb.preload = 'metadata';
+    videoThumb.muted = true;
+    videoThumb.playsInline = true;
+
+    videoThumb.addEventListener('loadeddata', () => {
+      try {
+        const canvas = document.createElement('canvas');
+        canvas.width = videoThumb.videoWidth;
+        canvas.height = videoThumb.videoHeight;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(videoThumb, 0, 0, canvas.width, canvas.height);
+        video.poster = canvas.toDataURL('image/jpeg');
+      } catch (err) {
+        console.warn('Thumbnail generation failed, using placeholder', err);
+        video.poster = '/img/video-placeholder.png';
+      }
     });
 
-    container.appendChild(element);
+    // Fallback for iOS devices
+    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
+      video.poster = '/img/video-placeholder.png';
+    }
+
+    container.appendChild(video);
   } else {
     console.warn("Unsupported file type:", type);
     return;
@@ -153,7 +166,6 @@ async function displayMedia(url, type) {
 
   gallery.appendChild(container);
 }
-
 
 // --- Gallery Loader with "Load More" ---
 let currentLimit = 10;
