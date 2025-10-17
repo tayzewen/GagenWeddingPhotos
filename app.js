@@ -105,8 +105,27 @@ function getTypeFromName(name) {
   return 'image/jpeg';
 }
 
-// --- Display Media (with Lazy Loading & Thumbnails) ---
-async function displayMedia(url, type) {
+// --- Autoplay When Visible ---
+function setupAutoPlay(video) {
+  video.muted = true;
+  video.playsInline = true;
+  video.loop = true;
+
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach(entry => {
+      if (entry.isIntersecting) {
+        video.play().catch(() => {}); // ignore autoplay errors
+      } else {
+        video.pause();
+      }
+    });
+  }, { threshold: 0.5 });
+
+  observer.observe(video);
+}
+
+// --- Display Media ---
+function displayMedia(url, type) {
   const container = document.createElement('div');
   container.style.marginBottom = '1rem';
   container.style.width = '100%';
@@ -130,35 +149,12 @@ async function displayMedia(url, type) {
     video.preload = 'metadata';
     video.style.width = '100%';
     video.style.height = 'auto';
-
-    // Generate thumbnail dynamically where supported
-    const videoThumb = document.createElement('video');
-    videoThumb.src = url;
-    videoThumb.crossOrigin = "anonymous";
-    videoThumb.preload = 'metadata';
-    videoThumb.muted = true;
-    videoThumb.playsInline = true;
-
-    videoThumb.addEventListener('loadeddata', () => {
-      try {
-        const canvas = document.createElement('canvas');
-        canvas.width = videoThumb.videoWidth;
-        canvas.height = videoThumb.videoHeight;
-        const ctx = canvas.getContext('2d');
-        ctx.drawImage(videoThumb, 0, 0, canvas.width, canvas.height);
-        video.poster = canvas.toDataURL('image/jpeg');
-      } catch (err) {
-        console.warn('Thumbnail generation failed, using placeholder', err);
-        video.poster = '/img/video-placeholder.png';
-      }
-    });
-
-    // Fallback for iOS devices
-    if (/iPhone|iPad|iPod/i.test(navigator.userAgent)) {
-      video.poster = '/img/video-placeholder.png';
-    }
-
     container.appendChild(video);
+
+    setupAutoPlay(video); // autoplay only when in viewport
+
+    // Optional poster placeholder
+    video.poster = '/img/video-placeholder.png';
   } else {
     console.warn("Unsupported file type:", type);
     return;
@@ -197,7 +193,7 @@ async function loadGallery(limit = currentLimit) {
       }
     }
 
-    // Handle Load More button
+    // Load More button
     let loadMoreBtn = document.getElementById('loadMoreBtn');
     if (sortedItems.length > limit) {
       if (!loadMoreBtn) {
